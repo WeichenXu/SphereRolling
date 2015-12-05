@@ -26,7 +26,7 @@ void WCX_sphere::loadSphereFromFile(){
 	}
 	std::getline(inputFile, line);
 	char *chr = new char[line.size()+1];
-	strcpy(chr, line.c_str());
+	strcpy_s(chr, line.length()+1, line.c_str());
 	triangleNum = atoi(chr);
 	this->vertex_size = triangleNum*3;
 	delete chr;
@@ -36,9 +36,9 @@ void WCX_sphere::loadSphereFromFile(){
 		std::getline(inputFile, line);
 		for(int j=0; j<3; j++){
 			std::getline(inputFile, line);
-			char *chr, *tok;
+			char *chr = NULL, *tok = NULL;
 			chr = new char[line.length()+1];
-			strcpy(chr, line.c_str());
+			strcpy_s(chr,line.length()+1, line.c_str());
 			
 			for(int k = 0; k<3; k++){
 				if(!k){
