@@ -46,7 +46,10 @@ void WCX_sphere::loadSphereFromFile(){
 					tok = std::strtok(chr, " ");
 				}
 				if(k == 1){sphere_points[Index].y = atof(tok);}
-				if(k == 2){sphere_points[Index].z = atof(tok);}
+				if(k == 2){
+					sphere_points[Index].z = atof(tok);
+					sphere_points[Index].w = 1.0;
+				}
 				tok = std::strtok(NULL, " ");
 			}
 			Index ++;
@@ -54,25 +57,32 @@ void WCX_sphere::loadSphereFromFile(){
 		}
 	}
 }
-void WCX_sphere::initColor(color3 uniformColor){
+void WCX_sphere::setColor(color4 uniformColor){
 	int Index = 0;
 	for(int i=0; i<this->vertex_size; i++){
 			this->sphere_colors[Index] = uniformColor;
 			Index++;
 	}
 }
-int WCX_sphere::rollingFromAToB(point3 A, point3 B, mat4 lastRotateM){
+int WCX_sphere::rollingFromAToB(point4 A, point4 B, mat4 lastRotateM){
 	accumuRollingM = lastRotateM;
 	this->rollingDirection = B-A;
-	this->rollingAxis = cross(vec3(0.0,1.0,0.0),rollingDirection);
+	this->rollingAxis = cross(vec4(0.0,1.0,0.0,0.0),rollingDirection);
 	this->rollingStart = A;
 	return int(length(A-B)/radius/rollingSpeed);
 }
 mat4 WCX_sphere::rollingFramePosition(int frame){
-	vec3 currentCenter = this->rollingStart + frame*this->rollingSpeed*this->radius*normalize(this->rollingDirection);
+	vec4 currentCenter = this->rollingStart + frame*this->rollingSpeed*this->radius*normalize(this->rollingDirection);
 	return Translate(currentCenter.x,currentCenter.y,currentCenter.z);
 }
 mat4 WCX_sphere::rollingFrameRotate(int frame){
 	mat4 currentRotateM = Rotate(this->rollingSpeed*frame*180/PI, rollingAxis.x, rollingAxis.y, rollingAxis.z);
 	return currentRotateM*accumuRollingM;
+}
+void WCX_sphere::setShadowColor(color4 sColor){
+	int Index = 0;
+	for(int i=0; i<this->vertex_size; i++){
+			this->shadow_colors[Index] = sColor;
+			Index++;
+	}
 }

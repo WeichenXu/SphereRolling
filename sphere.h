@@ -11,33 +11,38 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#define _MAX_SPHERE_VERTICES	1000
+#define _MAX_SPHERE_VERTICES	1024
 #define PI 3.1415
-typedef Angel::vec3  color3;
-typedef Angel::vec3  point3;
+typedef Angel::vec4  color4;
+typedef Angel::vec4  point4;
 class WCX_sphere{
 private:
 	float rollingSpeed, radius;	// speed radian per frame
-	vec3 rollingDirection, rollingAxis; // rotation direction: point B->A, rotation axis, Y cross dir
-	vec3 rollingStart;	// start point of the current rolling seg
+	vec4 rollingDirection, rollingAxis; // rotation direction: point B->A, rotation axis, Y cross dir
+	vec4 rollingStart;	// start point of the current rolling seg
 	mat4 accumuRollingM;	// Accumulated rolling matrix
 public:
 	WCX_sphere();
-	GLuint sphere_buffer;	/*vertex buffer object id for sphere */
+	GLuint sphere_buffer,shadow_buffer;	/*vertex buffer object id for sphere */
 	bool fill_flag;
+	bool shadow;
 	int vertex_size;
-	point3 sphere_points[_MAX_SPHERE_VERTICES];
-	color3 sphere_colors[_MAX_SPHERE_VERTICES];
-	void initColor(color3 uniformColor);
+	point4 sphere_points[_MAX_SPHERE_VERTICES*3];
+	color4 sphere_colors[_MAX_SPHERE_VERTICES*3];
+	color4 shadow_colors[_MAX_SPHERE_VERTICES*3];
+	void setColor(color4 uniformColor);
 	
 	//----------------------------------------------
 	//functions for rolling
 	void loadSphereFromFile();
 	void setRadius(float rad){this->radius = rad;}
-	int rollingFromAToB(point3 A, point3 B, mat4 lastRotateM); // rolling sphere from A to B
+	int rollingFromAToB(point4 A, point4 B, mat4 lastRotateM); // rolling sphere from A to B
 	mat4 rollingFramePosition(int frame); // get rolling translate matrix at frame n
 	//vec3 getRollingAxis(){return this->rollingAxis;} 
 	mat4 rollingFrameRotate(int frame); // get rolling rotation matrix at frame n
-	
+
+	//----------------------------------------------
+	//functions for shadow
+	void setShadowColor(color4 color);
 };
 #endif

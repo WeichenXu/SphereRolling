@@ -9,11 +9,11 @@
  *   on from the OpenGL program as uniform variables of type mat4.
  ***************************/
 
-#version 150  // YJC: Comment/un-comment this line to resolve compilation errors
+#version 420 // YJC: Comment/un-comment this line to resolve compilation errors
                  //      due to different settings of the default GLSL version
 
-in  vec3 vPosition;
-in  vec3 vColor;
+in  vec4 vPosition;
+in  vec4 vColor;
 out vec4 color;
 
 uniform mat4 model_view;
@@ -21,13 +21,13 @@ uniform mat4 projection;
 
 void main() 
 {
-vec4 vPosition4 = vec4(vPosition.x, vPosition.y, vPosition.z, 1.0);
-vec4 vColor4 = vec4(vColor.r, vColor.g, vColor.b, 1.0); 
+//vec4 vPosition4 = vec4(vPosition.x, vPosition.y, vPosition.z, 1.0);
+//vec4 vColor4 = vec4(vColor.r, vColor.g, vColor.b, 1.0); 
 
     // YJC: Original, incorrect below:
     //      gl_Position = projection*model_view*vPosition/vPosition.w;
 
-    gl_Position = projection * model_view * vPosition4;
+    gl_Position = projection * model_view * vPosition;
 
-    color = vColor4;
+    color = vColor;
 } 
