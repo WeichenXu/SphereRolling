@@ -3,7 +3,7 @@
  *       A simple fragment shader
  *****************************/
 
-#version 420  // YJC: Comment/un-comment this line to resolve compilation errors
+#version 150  // YJC: Comment/un-comment this line to resolve compilation errors
                  //      due to different settings of the default GLSL version
 
 in  vec4 color;

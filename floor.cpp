@@ -14,6 +14,10 @@ bool WCX_floor::setFloor(point4 topR, point4 downL){
 	floor_points[3] = color4(topR.x,y,topR.z, 1.0);
 	floor_points[4] = color4(downL.x,y,topR.z, 1.0);
 	floor_points[5] = color4(downL.x,y,downL.z, 1.0);
+	// init normals
+	for(int i=0; i<vertex_size; i++){
+		floor_normals[i] = point3(0.0, 1.0, 0.0);
+	}
 	return true;
 }
 void WCX_floor::setColor(color4 color){
@@ -30,4 +34,10 @@ void WCX_floor::generateAxis(){
 	axis_points[3] = point4(0.0,10.0,0.0,1.0);	axis_colors[3] = color4(1.0,0.0,1.0,1.0);
 	axis_points[4] = point4(0.0,0.0,0.0,1.0);	axis_colors[4] = color4(0.0,0.0,1.0,1.0);
 	axis_points[5] = point4(0.0,0.0,10.0,1.0);	axis_colors[5] = color4(0.0,0.0,1.0,1.0);
+}
+void WCX_floor::setMaterial(){
+	this->lp.material_ambient = color4(0.2, 0.2, 0.2, 1.0);
+	this->lp.material_diffuse = color4(0.0, 1.0, 0.0, 1.0);
+	this->lp.material_specular = color4(0.0, 0.0, 0.0, 1.0);
+	this->lp.material_shininess = 0.0;
 }

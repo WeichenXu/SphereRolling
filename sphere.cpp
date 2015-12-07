@@ -58,10 +58,8 @@ void WCX_sphere::loadSphereFromFile(){
 	}
 }
 void WCX_sphere::setColor(color4 uniformColor){
-	int Index = 0;
 	for(int i=0; i<this->vertex_size; i++){
-			this->sphere_colors[Index] = uniformColor;
-			Index++;
+			this->sphere_colors[i] = uniformColor;
 	}
 }
 int WCX_sphere::rollingFromAToB(point4 A, point4 B, mat4 lastRotateM){
@@ -80,9 +78,23 @@ mat4 WCX_sphere::rollingFrameRotate(int frame){
 	return currentRotateM*accumuRollingM;
 }
 void WCX_sphere::setShadowColor(color4 sColor){
-	int Index = 0;
 	for(int i=0; i<this->vertex_size; i++){
-			this->shadow_colors[Index] = sColor;
-			Index++;
+			this->shadow_colors[i] = sColor;
+	}
+}
+void WCX_sphere::setMaterial(){
+	this->lp.material_ambient = color4(0.2, 0.2, 0.2, 1.0);
+	this->lp.material_diffuse = color4(1.0, 0.84, 0.0, 1.0);
+	this->lp.material_specular = color4(1.0, 0.84, 0.0, 1.0);
+	this->lp.material_shininess = 125.0;
+}
+void WCX_sphere::setFlatNormals(){
+	for(int i=0; i<this->vertex_size/3; i++){
+		point4 a = this->sphere_points[i*3+1] - this->sphere_points[i*3];
+		point4 b = this->sphere_points[i*3+2] - this->sphere_points[i*3+1];
+		point3 a3(a.x, a.y, a.z), b3(b.x, b.y, b.z);
+		point3 vNormal = cross(a3,b3);
+		vNormal = normalize(vNormal);
+		for(int j=0; j<3; j++)	this->sphere_normals[i*3+j] = vNormal;
 	}
 }

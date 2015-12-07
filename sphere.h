@@ -8,6 +8,7 @@
 #ifndef  _WCX_sphere
 #define  _WCX_sphere
 #include "Angel-yjc.h"
+#include "light_products.h"
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -15,6 +16,7 @@
 #define PI 3.1415
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
+typedef Angel::vec3  point3;
 class WCX_sphere{
 private:
 	float rollingSpeed, radius;	// speed radian per frame
@@ -28,10 +30,14 @@ public:
 	bool shadow;
 	int vertex_size;
 	point4 sphere_points[_MAX_SPHERE_VERTICES*3];
+	point3 sphere_normals[_MAX_SPHERE_VERTICES*3];
 	color4 sphere_colors[_MAX_SPHERE_VERTICES*3];
 	color4 shadow_colors[_MAX_SPHERE_VERTICES*3];
 	void setColor(color4 uniformColor);
+	// attributes for shading
+	bool lighting_flag;
 	
+	WCX_light_products lp;
 	//----------------------------------------------
 	//functions for rolling
 	void loadSphereFromFile();
@@ -44,5 +50,10 @@ public:
 	//----------------------------------------------
 	//functions for shadow
 	void setShadowColor(color4 color);
+	//----------------------------------------------
+	//functions for shading
+	void setMaterial();
+	void setFlatNormals();
+	void setSmoothNormals();
 };
 #endif

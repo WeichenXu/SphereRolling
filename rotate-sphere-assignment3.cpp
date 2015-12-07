@@ -13,6 +13,7 @@
 #include "Angel-yjc.h"
 #include "sphere.h"
 #include "floor.h"
+#include "light.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -23,7 +24,7 @@ WCX_sphere sphere;
 WCX_floor myFloor;
 GLuint Angel::InitShader(const char* vShaderFile, const char* fShaderFile);
 
-GLuint program;       /* shader program object id */
+GLuint programs[2];       /* shader program object id */
 GLuint myFloor_buffer;  /* vertex buffer object id for myFloor */
 GLuint sphere_buffer;	/*vertex buffer object id for sphere */
 
@@ -59,27 +60,56 @@ color4 shadow_color(0.25, 0.25, 0.25, 0.65);
 vec4 plane = vec4(0.0, 1.0, 0.0, 0.0);
 void getShadowMatrix(mat4 &shadowM, point4 lightSource, vec4 plane);
 
+// Light
+
+WCX_light myLight;
+void initLightSource();
+
+//----------------------------------------------------------------------------
+// sphere initialization
+void initSphere(){
+	// init & set sphere
+	sphere.loadSphereFromFile();
+	sphere.setFlatNormals();
+	sphere.fill_flag = false;
+	sphere.lighting_flag = false;
+	sphere.shadow = true;
+	sphere.setColor(sphere_color);
+	sphere.setShadowColor(shadow_color);
+	sphere.setMaterial();
+	sphere.setRadius(sphereScale);
+}
+//----------------------------------------------------------------------------
+// floor initialization
+void initFloor(){
+	// init & set myFloor
+	myFloor.setFloor(vec4(5.0,0.0,8.0,1.0),vec4(-5.0,0.0,-4.0, 1.0));
+	myFloor.fill_flag = true;
+	myFloor.lighting_flag = false;
+	color4 myFloor_color(0.0,1.0,0.0, 1.0);
+	myFloor.setColor(myFloor_color);
+	myFloor.setMaterial();
+	myFloor.generateAxis();
+}
 //----------------------------------------------------------------------------
 // OpenGL initialization
 void init()
 {
-    // init & set sphere
-	sphere.loadSphereFromFile();
-	sphere.fill_flag = false;
-	sphere.shadow = true;
-	sphere.setColor(sphere_color);
-	sphere.setShadowColor(shadow_color);
-	sphere.setRadius(sphereScale);
- // Create and initialize a vertex buffer object for cube, to be used in display()
+	
+    initSphere();
+	// Create and initialize a vertex buffer object for sphere, to be used in display()
 	glGenBuffers(1, &sphere.sphere_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, sphere.sphere_buffer);
 #if 1
-	glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size + sizeof(color4) * sphere.vertex_size,
+	glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size + sizeof(color4) * sphere.vertex_size + sizeof(point3) * sphere.vertex_size,
 		 NULL, GL_STATIC_DRAW);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(point4) * sphere.vertex_size, sphere.sphere_points);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size, sizeof(color4) * sphere.vertex_size,
 		sphere.sphere_colors);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size + sizeof(color4) * sphere.vertex_size, sizeof(point3) * sphere.vertex_size,
+		sphere.sphere_normals);
 #endif
+
 	// Create and initialize a vertex buffer object for sphere shadow
 	glGenBuffers(1, &sphere.shadow_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, sphere.shadow_buffer);
@@ -90,21 +120,18 @@ void init()
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size, sizeof(color4) * sphere.vertex_size,
 		sphere.shadow_colors);
 #endif
-	// init & set myFloor
-	myFloor.setFloor(vec4(5.0,0.0,8.0,1.0),vec4(-5.0,0.0,-4.0, 1.0));
-	myFloor.fill_flag = true;
-	color4 myFloor_color(0.0,1.0,0.0, 1.0);
-	myFloor.setColor(myFloor_color);
-	myFloor.generateAxis();
+	initFloor();
  // Create and initialize a vertex buffer for myFloor
 	glGenBuffers(1, &myFloor.floor_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, myFloor.floor_buffer);
 #if 1
-	glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size,
+	glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size + sizeof(point3) * myFloor.vertex_size,
 		 NULL, GL_STATIC_DRAW);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(point4) * myFloor.vertex_size, myFloor.floor_points);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size, sizeof(color4) * myFloor.vertex_size,
 		myFloor.floor_colors);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size, sizeof(point3) * myFloor.vertex_size,
+		myFloor.floor_normals);
 #endif
 	// Create and initialize a vertex buffer object for axis
 	glGenBuffers(1, &myFloor.axis_buffer);
@@ -116,13 +143,54 @@ void init()
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.axis_vertex_size, sizeof(color4) * myFloor.axis_vertex_size,
 		myFloor.axis_colors);
 #endif
+
+	// init & set up light source
+	initLightSource();
  // Load shaders and create a shader program (to be used in display())
-    program = InitShader("vshader42.glsl", "fshader42.glsl");
-    
+    programs[0] = InitShader("vshader42.glsl", "fshader42.glsl");
+    programs[1] = InitShader("vshader43.glsl", "fshader42.glsl");
     glEnable( GL_DEPTH_TEST );
     glClearColor( 0.0, 0.0, 0.0, 1.0 ); 
     // initialize shadow matrix
 	getShadowMatrix(shadowMatrix, shadowLight, plane);
+}
+//----------------------------------------------------------------------------
+// initialize light souce
+void initLightSource(){
+	myLight.global_ambient = color4(1.0, 1.0, 1.0, 1.0);
+	myLight.light_ambient = color4(0.0, 0.0, 0.0, 1.0);
+	myLight.light_diffuse = color4(0.8, 0.8, 0.8, 1.0);
+	myLight.light_specular = color4(0.2, 0.2, 0.2, 1.0);
+	myLight.light_direction = point4(0.1, 0.0, -1.0, 0.0);
+	myLight.getProduct(sphere.lp);
+	myLight.getProduct(myFloor.lp);
+	myLight.smooth = false;
+}
+//----------------------------------------------------------------------
+// SetUp_Lighting_Uniform_Vars(mat4 mv):
+// Set up lighting parameters that are uniform variables in shader.
+//
+// Note: "LightPosition" in shader must be in the Eye Frame.
+//       So we use parameter "mv", the model-view matrix, to transform
+//       light_position to the Eye Frame.
+//----------------------------------------------------------------------
+void SetUp_Lighting_Uniform_Vars(mat4 mv, GLuint program, WCX_light_products &lp)
+{
+    glUniform4fv( glGetUniformLocation(program, "AmbientProduct"),
+		  1, lp.ambient_product );
+    glUniform4fv( glGetUniformLocation(program, "DiffuseProduct"),
+		  1, lp.diffuse_product );
+    glUniform4fv( glGetUniformLocation(program, "SpecularProduct"),
+		  1, lp.specular_product );
+	glUniform4fv( glGetUniformLocation(program, "distant_light_dir"),
+		1, myLight.light_direction );
+	glUniform1i( glGetUniformLocation(program, "smooth_shading"), myLight.smooth);
+   
+    mat3 normal_matrix = NormalMatrix(mv, 1);
+    glUniformMatrix3fv(glGetUniformLocation(program, "Normal_Matrix"), 
+		       1, GL_TRUE, normal_matrix );
+    glUniform1f(glGetUniformLocation(program, "Shininess"),
+		        lp.material_shininess );
 }
 //----------------------------------------------------------------------------
 // Rolling sphere
@@ -149,27 +217,32 @@ void rolling(){
 // drawObj(buffer, num_vertices):
 // modify drawMode to draw lines in shader
 // for X,Y,Z axises
-void drawObj(GLuint buffer, int num_vertices, GLuint drawMode)
+void drawObj(GLuint buffer, int num_vertices, GLuint drawMode, GLuint program)
 {
     //--- Activate the vertex buffer object to be drawn ---//
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-
+	GLuint vPosition, vColor, vNormal;
     /*----- Set up vertex attribute arrays for each vertex attribute -----*/
-    GLuint vPosition = glGetAttribLocation(program, "vPosition");
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size + sizeof(color4) * sphere.vertex_size,
-		 //NULL, GL_DYNAMIC_DRAW);
-	//glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(point4) * sphere.vertex_size, sphere.sphere_points);
-	
+    vPosition = glGetAttribLocation(program, "vPosition");
     glEnableVertexAttribArray(vPosition);
     glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0,
 			  BUFFER_OFFSET(0) );
-
-    GLuint vColor = glGetAttribLocation(program, "vColor"); 
+	if(program == programs[0]){
+		vColor = glGetAttribLocation(program, "vColor"); 
 	//glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size, sizeof(color4) * sphere.vertex_size,
 		//sphere.sphere_colors);
-    glEnableVertexAttribArray(vColor);
-    glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-			  BUFFER_OFFSET(sizeof(point4) * num_vertices) ); 
+		glEnableVertexAttribArray(vColor);
+		glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
+				BUFFER_OFFSET(sizeof(point4) * num_vertices) ); 
+	}
+	else if(program == programs[1]){
+		vNormal = glGetAttribLocation(program, "vNormal"); 
+	//glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * sphere.vertex_size, sizeof(color4) * sphere.vertex_size,
+		//sphere.sphere_colors);
+		glEnableVertexAttribArray(vNormal);
+		glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0,
+				BUFFER_OFFSET(sizeof(point4) * num_vertices + sizeof(point4) * num_vertices) ); 
+	}
       // the offset is the (total) size of the previous vertex attribute array(s)
 
     /* Draw a sequence of geometric objs (triangles) from the vertex buffer
@@ -178,24 +251,68 @@ void drawObj(GLuint buffer, int num_vertices, GLuint drawMode)
 
     /*--- Disable each vertex attribute array being enabled ---*/
     glDisableVertexAttribArray(vPosition);
-    glDisableVertexAttribArray(vColor);
+    if(program == programs[0])	glDisableVertexAttribArray(vColor);
+	else if(program == programs[1])	glDisableVertexAttribArray(vNormal);
+}
+//----------------------------------------------------------------------------
+// draw sphere
+void drawSphere(mat4 mv, mat4 p){
+	GLuint  model_view;  // model-view matrix uniform shader variable location
+	GLuint  projection;  // projection matrix uniform shader variable location
+	GLuint  program;
+	if(sphere.lighting_flag)	program = programs[1];
+	else	program = programs[0];
+	glUseProgram(program); // Use the shader program
+	model_view = glGetUniformLocation(program, "model_view" );
+    projection = glGetUniformLocation(program, "projection" );
+	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
+	if(beginRolling)	mv =  mv * sphere.rollingFramePosition(frame)*sphere.rollingFrameRotate(frame);
+	else
+	{
+		mv = mv * Translate(-4.0, 1.0, 4.0);
+	}
+    glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
+	if(sphere.lighting_flag)	SetUp_Lighting_Uniform_Vars(mv, program, sphere.lp);
+	if (sphere.fill_flag == 1) // Filled cube
+       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    else              // Wireframe cube
+       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glLineWidth(1.0);
+	drawObj(sphere.sphere_buffer, sphere.vertex_size,GL_TRIANGLES, program);  // draw the sphere
+}
+//----------------------------------------------------------------------------
+// draw floor
+void drawFloor(mat4 mv, mat4 p){
+	GLuint  model_view;  // model-view matrix uniform shader variable location
+	GLuint  projection;  // projection matrix uniform shader variable location
+	GLuint  program;
+	if(myFloor.lighting_flag)	program = programs[1];
+	else	program = programs[0];
+	glUseProgram(program); // Use the shader program
+	model_view = glGetUniformLocation(program, "model_view" );
+    projection = glGetUniformLocation(program, "projection" );
+	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
+	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
+	if(sphere.lighting_flag)	SetUp_Lighting_Uniform_Vars(mv, program, myFloor.lp);
+	if (myFloor.fill_flag == 1) // Filled floor
+       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    else              // Wireframe floor
+       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	drawObj(myFloor.floor_buffer, myFloor.vertex_size,GL_TRIANGLES, program);  // draw the cube
 }
 //----------------------------------------------------------------------------
 void display( void )
 {
   GLuint  model_view;  // model-view matrix uniform shader variable location
   GLuint  projection;  // projection matrix uniform shader variable location
+  GLuint  program;
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 	glClearColor(0.529,0.807,0.92,1.0);
-    glUseProgram(program); // Use the shader program
-
-    model_view = glGetUniformLocation(program, "model_view" );
-    projection = glGetUniformLocation(program, "projection" );
+	
 
     /*---  Set up and pass on Projection matrix to the shader ---*/
     mat4  p = Perspective(fovy, aspect, zNear, zFar);
-    glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
-
+    
     /*---  Set up and pass on Model-View matrix to the shader ---*/
     // eye is a global variable of vec4 set to init_eye and updated by keyboard()
     vec4    at(-7.0, -3.0, 10.0, 1.0);
@@ -204,35 +321,24 @@ void display( void )
     mat4  mv = LookAt(eye, at, up);
 	// whether rolling begin
 	// Draw sphere
-	
-	if(beginRolling)	mv =  mv * sphere.rollingFramePosition(frame)*sphere.rollingFrameRotate(frame);
-	else
-	{
-		mv = mv * Translate(-4.0, 1.0, 4.0);
-	}
-    glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
-	if (sphere.fill_flag == 1) // Filled cube
-       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    else              // Wireframe cube
-       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glLineWidth(1.0);
-	drawObj(sphere.sphere_buffer, sphere.vertex_size,GL_TRIANGLES);  // draw the sphere
-	
+	drawSphere(mv, p);
+
 	// Draw myFloor first time: only to z-buffer
-	mv = LookAt(eye, at, up);
-	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
-	if (myFloor.fill_flag == 1) // Filled floor
-       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    else              // Wireframe floor
-       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	
 	glDepthMask(GL_FALSE);
-	drawObj(myFloor.floor_buffer, myFloor.vertex_size,GL_TRIANGLES);  // draw the cube
-	glLineWidth(2.0);
+	drawFloor(mv, p);  // draw the cube
+	//glLineWidth(2.0);
 
 	// Draw shadow by draw sphere*shadow_projection again
 	// z-buffer & color buffer
 	// No shadow when eye is below the plane
-	if(sphere.shadow){
+	
+	if(sphere.shadow && eye[1] > 0){
+		program = programs[0];
+		glUseProgram(program); // Use the shader program
+		model_view = glGetUniformLocation(program, "model_view" );
+		projection = glGetUniformLocation(program, "projection" );
+		glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
 		mv = LookAt(eye, at, up);
 		if(beginRolling)	mv =  mv * shadowMatrix * sphere.rollingFramePosition(frame)*sphere.rollingFrameRotate(frame);
 		else
@@ -246,28 +352,28 @@ void display( void )
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glLineWidth(1.0);
 		glDepthMask(GL_TRUE);
-		drawObj(sphere.shadow_buffer, sphere.vertex_size,GL_TRIANGLES);  // draw the sphere shadow
+		drawObj(sphere.shadow_buffer, sphere.vertex_size,GL_TRIANGLES, program);  // draw the sphere shadow
 	}
 
 	// Draw myFloor: only to color buffer
 	// Restore default when finished
 	mv = LookAt(eye, at, up);
-	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
-	if (myFloor.fill_flag == 1) // Filled floor
-       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    else              // Wireframe floor
-       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	drawObj(myFloor.floor_buffer, myFloor.vertex_size,GL_TRIANGLES);  // draw the cube
+	drawFloor(mv, p);  // draw the cube
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glLineWidth(2.0);
+	
 
 	// Draw axises
-	mv = LookAt(eye, at, up);
+	program = programs[0];
+    glUseProgram(program); // Use the shader program
+    model_view = glGetUniformLocation(program, "model_view" );
+    projection = glGetUniformLocation(program, "projection" );
+	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
 	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	drawObj(myFloor.axis_buffer, myFloor.axis_vertex_size,GL_LINES);  // draw the cube
+	glLineWidth(2.0);
+	drawObj(myFloor.axis_buffer, myFloor.axis_vertex_size,GL_LINES, program);  // draw the cube
 	
     glutSwapBuffers();
 }
@@ -323,9 +429,7 @@ void keyboard(unsigned char key, int x, int y)
     case 'Z': eye[2] += 1.0; break;
 	case 'z': eye[2] -= 1.0; break;
     }
-	// chech whether eye is upper than ground
-	if(eye[1] <= 0)	sphere.shadow = false;
-	else	sphere.shadow = true;
+	
     glutPostRedisplay();
 }
 //----------------------------------------------------------------------------
@@ -358,10 +462,15 @@ void shadowMenu(int id){
 }
 //
 void lightMenu(int id){
+	sphere.fill_flag = true;
 	switch(id){
 	case 1:
+		sphere.lighting_flag = false;
+		myFloor.lighting_flag = false;
 		break;
 	case 2:
+		sphere.lighting_flag = true;
+		myFloor.lighting_flag = true;
 		break;
 	}
 }
@@ -381,8 +490,10 @@ void shadingMenu(int id){
 	sphere.fill_flag = true;
 	switch(id){
 	case 1:
+		myLight.smooth = 0;
 		break;
 	case 2:
+		myLight.smooth = 1;
 		break;
 	}
 }
