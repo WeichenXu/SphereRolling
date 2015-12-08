@@ -164,7 +164,20 @@ void initLightSource(){
 	myLight.light_direction = point4(0.1, 0.0, -1.0, 0.0);
 	myLight.getProduct(sphere.lp);
 	myLight.getProduct(myFloor.lp);
-	myLight.smooth = false;
+	myLight.light_ambient2 = color4(1.0, 1.0, 1.0, 1.0);
+	myLight.light_diffuse2 = color4(0.0, 0.0, 0.0, 1.0);
+	myLight.light_specular2 = color4(1.0, 1.0, 1.0, 1.0);
+	myLight.light_position2 = point4(-14, 12, -3, 1);
+	myLight.const_att2 = 2.0;
+	myLight.linear_att2 = 0.01;
+	myLight.quad_att2 = 0.001;
+	myLight.light_direction2 = point4(8, -12, 1, 0.0);
+	myLight.light_exp2 = 15.0;
+	myLight.light_range2 = (20.0)/180*PI;
+	myLight.getProduct2(sphere.lp);
+	myLight.getProduct2(myFloor.lp);
+	myLight.smooth = 0;
+	myLight.point = 1;
 }
 //----------------------------------------------------------------------
 // SetUp_Lighting_Uniform_Vars(mat4 mv):
@@ -176,6 +189,7 @@ void initLightSource(){
 //----------------------------------------------------------------------
 void SetUp_Lighting_Uniform_Vars(mat4 mv, GLuint program, WCX_light_products &lp)
 {
+	
     glUniform4fv( glGetUniformLocation(program, "AmbientProduct"),
 		  1, lp.ambient_product );
     glUniform4fv( glGetUniformLocation(program, "DiffuseProduct"),
@@ -184,13 +198,35 @@ void SetUp_Lighting_Uniform_Vars(mat4 mv, GLuint program, WCX_light_products &lp
 		  1, lp.specular_product );
 	glUniform4fv( glGetUniformLocation(program, "distant_light_dir"),
 		1, myLight.light_direction );
+	glUniform4fv( glGetUniformLocation(program, "pointAmbientProduct"),
+		  1, lp.ambient_product2 );
+    glUniform4fv( glGetUniformLocation(program, "pointDiffuseProduct"),
+		  1, lp.diffuse_product2 );
+    glUniform4fv( glGetUniformLocation(program, "pointSpecularProduct"),
+		  1, lp.specular_product2 );
+	mat3 normal_matrix = NormalMatrix(mv, 1);
+	mat4 nm = mat4WithUpperLeftMat3(normal_matrix);
+	glUniform4fv( glGetUniformLocation(program, "pointLightDir"),
+		1, nm*myLight.light_direction2);
+
+	point4 light_position_eye_frame = mv * myLight.light_position2;
+	glUniform4fv( glGetUniformLocation(program, "pointLightPosition"),
+		1, light_position_eye_frame);
 	glUniform1i( glGetUniformLocation(program, "smooth_shading"), myLight.smooth);
-   
-    mat3 normal_matrix = NormalMatrix(mv, 1);
-    glUniformMatrix3fv(glGetUniformLocation(program, "Normal_Matrix"), 
-		       1, GL_TRUE, normal_matrix );
+	glUniform1i( glGetUniformLocation(program, "point_light"), myLight.point);
+
     glUniform1f(glGetUniformLocation(program, "Shininess"),
 		        lp.material_shininess );
+	glUniform1f(glGetUniformLocation(program, "pointLightAng"),
+		myLight.light_range2 );
+	glUniform1f(glGetUniformLocation(program, "pointLightExp"),
+		myLight.light_exp2);
+	glUniform1f(glGetUniformLocation(program, "ConstAtt"),
+		myLight.const_att2 );
+	glUniform1f(glGetUniformLocation(program, "LinearAtt"),
+		myLight.linear_att2 );
+	glUniform1f(glGetUniformLocation(program, "QuadAtt"),
+		myLight.quad_att2 );
 }
 //----------------------------------------------------------------------------
 // Rolling sphere
@@ -266,13 +302,16 @@ void drawSphere(mat4 mv, mat4 p){
 	model_view = glGetUniformLocation(program, "model_view" );
     projection = glGetUniformLocation(program, "projection" );
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
+	if(sphere.lighting_flag)	SetUp_Lighting_Uniform_Vars(mv, program, sphere.lp);
 	if(beginRolling)	mv =  mv * sphere.rollingFramePosition(frame)*sphere.rollingFrameRotate(frame);
 	else
 	{
 		mv = mv * Translate(-4.0, 1.0, 4.0);
 	}
     glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
-	if(sphere.lighting_flag)	SetUp_Lighting_Uniform_Vars(mv, program, sphere.lp);
+	mat3 normal_matrix = NormalMatrix(mv, 1);
+    glUniformMatrix3fv(glGetUniformLocation(program, "Normal_Matrix"), 
+		       1, GL_TRUE, normal_matrix );
 	if (sphere.fill_flag == 1) // Filled cube
        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     else              // Wireframe cube
@@ -294,6 +333,10 @@ void drawFloor(mat4 mv, mat4 p){
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
 	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
 	if(sphere.lighting_flag)	SetUp_Lighting_Uniform_Vars(mv, program, myFloor.lp);
+	glUniform1i( glGetUniformLocation(program, "smooth_shading"), 0);
+	mat3 normal_matrix = NormalMatrix(mv, 1);
+    glUniformMatrix3fv(glGetUniformLocation(program, "Normal_Matrix"), 
+		       1, GL_TRUE, normal_matrix );
 	if (myFloor.fill_flag == 1) // Filled floor
        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     else              // Wireframe floor
@@ -324,7 +367,7 @@ void display( void )
 	drawSphere(mv, p);
 
 	// Draw myFloor first time: only to z-buffer
-	
+	mv = LookAt(eye, at, up);
 	glDepthMask(GL_FALSE);
 	drawFloor(mv, p);  // draw the cube
 	//glLineWidth(2.0);
@@ -497,7 +540,17 @@ void shadingMenu(int id){
 		break;
 	}
 }
-
+//
+void lightSourceMenu(int id){
+	switch(id){
+	case 1:
+		myLight.point = 0;
+		break;
+	case 2:
+		myLight.point = 1;
+		break;
+	}
+}
 //----------------------------------------------------------------------------
 void reshape(int width, int height)
 {
@@ -523,6 +576,9 @@ void addControl(){
 	GLuint subShadingMenu = glutCreateMenu(shadingMenu);
 	glutAddMenuEntry("Flat shading",1);
 	glutAddMenuEntry("Smooth shading",2);
+	GLuint subLSMenu = glutCreateMenu(lightSourceMenu);
+	glutAddMenuEntry("Spot Light",1);
+	glutAddMenuEntry("Point Source",2);
 	glutCreateMenu(myMenu);
 	glutAddMenuEntry("Default View Port",1);
 	glutAddMenuEntry("Quit",2);
@@ -530,6 +586,7 @@ void addControl(){
 	glutAddSubMenu("Enable Lighting", subLightMenu);
 	glutAddSubMenu("Wire Frame Sphere", subWFMenu);
 	glutAddSubMenu("Shading", subShadingMenu);
+	glutAddSubMenu("Light Source", subLSMenu);
 	//glutAddSubMenu("Shadow", );
 	glutAttachMenu(GLUT_LEFT_BUTTON);
 }

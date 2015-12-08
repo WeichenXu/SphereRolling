@@ -54,6 +54,6 @@ public:
 	//functions for shading
 	void setMaterial();
 	void setFlatNormals();
-	void setSmoothNormals();
+	
 };
 #endif
