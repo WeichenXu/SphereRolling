@@ -1,14 +1,10 @@
 /************************************************************
  * Author: Weichen Xu
- * Date: 11/09/2015
- * include WCX_sphere & WCX_floor to store & operate on rolling sphere and floors
- * a. file Loading in sphere.cpp, loadSphereFromFile
- * b. both sphere & floor store vertex data
- * c. rolling, implemented in sphere class, same method at class, use iterative frame to get the current sphere 
- *    translate & rotate matrixes
- * d. store the accumulated rotation matrix before a new rolling segment
- *    mv = translation_per_frame* translation_per_frame*accumulated_rotation_matrix
- * e. myKeyFunc & myMouseFunc
+ * Date: 12/08/2015
+ * 1. shadow, using shadow matrix
+ * 2. turn on/off depth test when drawing shadow
+ * 3. ambient light and directional light
+ * 4. shading with point/spot light
 /**************************************************************/
 #include "Angel-yjc.h"
 #include "sphere.h"
@@ -164,14 +160,14 @@ void initLightSource(){
 	myLight.light_direction = point4(0.1, 0.0, -1.0, 0.0);
 	myLight.getProduct(sphere.lp);
 	myLight.getProduct(myFloor.lp);
-	myLight.light_ambient2 = color4(1.0, 1.0, 1.0, 1.0);
-	myLight.light_diffuse2 = color4(0.0, 0.0, 0.0, 1.0);
+	myLight.light_ambient2 = color4(0.0, 0.0, 0.0, 1.0);
+	myLight.light_diffuse2 = color4(1.0, 1.0, 1.0, 1.0);
 	myLight.light_specular2 = color4(1.0, 1.0, 1.0, 1.0);
 	myLight.light_position2 = point4(-14, 12, -3, 1);
 	myLight.const_att2 = 2.0;
 	myLight.linear_att2 = 0.01;
 	myLight.quad_att2 = 0.001;
-	myLight.light_direction2 = point4(8, -12, 1, 0.0);
+	myLight.light_direction2 = point4(8, -12, -1.5, 0.0);
 	myLight.light_exp2 = 15.0;
 	myLight.light_range2 = (20.0)/180*PI;
 	myLight.getProduct2(sphere.lp);
@@ -497,6 +493,8 @@ void shadowMenu(int id){
 	switch(id){
 	case 1:
 		sphere.shadow =false;
+		sphere.lighting_flag = false;
+		myFloor.lighting_flag = false;
 		break;
 	case 2:
 		sphere.shadow = true;
