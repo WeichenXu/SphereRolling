@@ -74,12 +74,6 @@ void main()
 	// get distance attenuation
 	dis = length(pos-pointLightPosition.xyz);
 	attenuation = 1/(ConstAtt + LinearAtt*dis + QuadAtt*dis*dis);
-	
-	ambient = attenuation * pointAmbientProduct;
-	d = max( dot(L, N), 0.0 );
-	diffuse = attenuation * d * pointDiffuseProduct;
-	// get specular light
-	s = pow( max(dot(N, H), 0.0), Shininess );
 	if(point_light == 0){	
 		//attenuation *= pow(1,pointLightExp);
 		if(dot(-L,Lf)>cos(pointLightAng)){
@@ -89,11 +83,17 @@ void main()
 			attenuation = 0;
 		}
 	}
+	ambient = attenuation * pointAmbientProduct;
+	d = max( dot(L, N), 0.0 );
+	diffuse = attenuation * d * pointDiffuseProduct;
+	// get specular light
+	s = pow( max(dot(N, H), 0.0), Shininess );
+	
 	specular = attenuation*s*pointSpecularProduct;
 	if( dot(L, N) < 0.0 ) {
 		specular = vec4(0.0, 0.0, 0.0, 1.0);
     } 
 	color += (ambient + diffuse + specular);
-	
+	//color = specular;
 	gl_Position = projection * model_view * vPosition;
 } 
