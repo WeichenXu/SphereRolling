@@ -15,6 +15,7 @@
 in  vec4 vPosition;
 in  vec4 vColor;
 out vec4 color;
+out vec4 ePosition; // position in eye frame
 uniform mat4 model_view;
 uniform mat4 projection;
 
@@ -22,7 +23,7 @@ void main()
 {
     // YJC: Original, incorrect below:
     //      gl_Position = projection*model_view*vPosition/vPosition.w;
-
+	ePosition = model_view*vPosition;
     gl_Position = projection * model_view * vPosition;
 	color = vColor;
 } 

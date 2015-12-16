@@ -15,6 +15,7 @@
 in  vec4 vPosition;
 in  vec3 vNormal;
 out vec4 color;
+out vec4 ePosition; // position in eye frame
 
 uniform int smooth_shading; // use smooth/flat shading
 uniform int point_light; // use point/spotlight source
@@ -94,6 +95,6 @@ void main()
 		specular = vec4(0.0, 0.0, 0.0, 1.0);
     } 
 	color += (ambient + diffuse + specular);
-	//color = specular;
+	ePosition = model_view*vPosition;
 	gl_Position = projection * model_view * vPosition;
 } 
