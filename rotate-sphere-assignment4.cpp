@@ -55,6 +55,7 @@ point4 shadowLight = point4(-14.0, 12.0, -3.0, 1.0);
 color4 shadow_color(0.25, 0.25, 0.25, 0.65);
 vec4 plane = vec4(0.0, 1.0, 0.0, 0.0);
 void getShadowMatrix(mat4 &shadowM, point4 lightSource, vec4 plane);
+bool blending_shadow = false;
 
 // Light
 WCX_light myLight;
@@ -379,6 +380,11 @@ void display( void )
 	// z-buffer & color buffer
 	// No shadow when eye is below the plane
 	
+	// Enable blending
+	if(blending_shadow){
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
 	if(sphere.shadow && eye[1] > 0){
 		program = programs[0];
 		glUseProgram(program); // Use the shader program
@@ -399,10 +405,12 @@ void display( void )
 		else              // Wireframe cube
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glLineWidth(1.0);
-		glDepthMask(GL_TRUE);
+		
 		drawObj(sphere.shadow_buffer, sphere.vertex_size,GL_TRIANGLES, program);  // draw the sphere shadow
 	}
-
+	if(blending_shadow){
+		glDisable(GL_BLEND);
+	}
 	// Draw myFloor: only to color buffer
 	// Restore default when finished
 	mv = LookAt(eye, at, up);
@@ -560,9 +568,20 @@ void lightSourceMenu(int id){
 		break;
 	}
 }
-//
+//----------------------------------------------------------------------------
 void fogMenu(int id){
 	fog_mode = id-1;
+}
+//----------------------------------------------------------------------------
+void blendingShadowMenu(int id){
+	switch(id){
+	case 1:
+		blending_shadow = false;
+		break;
+	case 2:
+		blending_shadow = true;
+		break;
+	}
 }
 //----------------------------------------------------------------------------
 void reshape(int width, int height)
@@ -597,6 +616,9 @@ void addControl(){
 	glutAddMenuEntry("Linear Fog",2);
 	glutAddMenuEntry("Exponential Fog",3);
 	glutAddMenuEntry("Exponential Square Fog",4);
+	GLuint subBSMenu = glutCreateMenu(blendingShadowMenu);
+	glutAddMenuEntry("No", 1);
+	glutAddMenuEntry("Yes", 2);
 	glutCreateMenu(myMenu);
 	glutAddMenuEntry("Default View Port",1);
 	glutAddMenuEntry("Quit",2);
@@ -606,6 +628,7 @@ void addControl(){
 	glutAddSubMenu("Shading", subShadingMenu);
 	glutAddSubMenu("Light Source", subLSMenu);
 	glutAddSubMenu("Fog", subFogMenu);
+	glutAddSubMenu("Blending Shadow", subBSMenu);
 	glutAttachMenu(GLUT_LEFT_BUTTON);
 }
 //----------------------------------------------------------------------------
