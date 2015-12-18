@@ -30,6 +30,9 @@ public:
 	bool lighting_flag;
 	point3 floor_normals[_FLOOR_VERTICES];
 	WCX_light_products lp;
+	// attributes for texture
+	int texture_mapped_ground;
+	vec2 floor_texture_cord[_FLOOR_VERTICES];
 
 	bool setFloor(point4 topR, point4 downL);
 	void setColor(color4 uniformColor);
@@ -37,5 +40,6 @@ public:
 	//----------------------------------------------
 	//functions for lighting
 	void setMaterial();
+	
 };
 #endif

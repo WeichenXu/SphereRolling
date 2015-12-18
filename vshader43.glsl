@@ -14,8 +14,10 @@
 
 in  vec4 vPosition;
 in  vec3 vNormal;
+in  vec2 vTexCoord;
 out vec4 color;
 out vec4 ePosition; // position in eye frame
+out vec2 texCoord;
 
 uniform int smooth_shading; // use smooth/flat shading
 uniform int point_light; // use point/spotlight source
@@ -97,4 +99,5 @@ void main()
 	color += (ambient + diffuse + specular);
 	ePosition = model_view*vPosition;
 	gl_Position = projection * model_view * vPosition;
+	texCoord = vTexCoord;
 } 

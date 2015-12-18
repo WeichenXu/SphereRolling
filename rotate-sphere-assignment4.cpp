@@ -1,10 +1,9 @@
 /************************************************************
  * Author: Weichen Xu
- * Date: 12/08/2015
- * 1. shadow, using shadow matrix
- * 2. turn on/off depth test when drawing shadow
- * 3. ambient light and directional light
- * 4. shading with point/spot light
+ * Date: 12/16/2015
+ * 1. fog, 3 types
+ * 2. blending shadow
+ * 3. texture mapping
 /**************************************************************/
 #include "Angel-yjc.h"
 #include "sphere.h"
@@ -65,6 +64,66 @@ void initLightSource();
 // 0: no fog; 1: linear; 2: expotional; 3: exp square
 // init with no fog: 0
 GLuint fog_mode = 0;
+
+/* global definitions for constants and global image arrays */
+static GLuint tex[2];
+#define ImageWidth  32
+#define ImageHeight 32
+GLubyte Image[ImageHeight][ImageWidth][4];
+
+#define	stripeImageWidth 32
+GLubyte stripeImage[4*stripeImageWidth];
+//----------------------------------------------------------------------------
+void image_set_up(void)
+{
+ int i, j, c; 
+ 
+ /* --- Generate checkerboard image to the image array ---*/
+  for (i = 0; i < ImageHeight; i++)
+    for (j = 0; j < ImageWidth; j++)
+      {
+       c = (((i & 0x8) == 0) ^ ((j & 0x8) == 0));
+
+       if (c == 1) /* white */
+	{
+         c = 255;  
+	 Image[i][j][0] = (GLubyte) c;
+         Image[i][j][1] = (GLubyte) c;
+         Image[i][j][2] = (GLubyte) c;
+	}
+       else  /* green */
+	{
+         Image[i][j][0] = (GLubyte) 0;
+         Image[i][j][1] = (GLubyte) 150;
+         Image[i][j][2] = (GLubyte) 0;
+	}
+
+       Image[i][j][3] = (GLubyte) 255;
+      }
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+/*--- Generate 1D stripe image to array stripeImage[] ---*/
+  for (j = 0; j < stripeImageWidth; j++) {
+     /* When j <= 4, the color is (255, 0, 0),   i.e., red stripe/line.
+        When j > 4,  the color is (255, 255, 0), i.e., yellow remaining texture
+      */
+    stripeImage[4*j] = (GLubyte)    255;
+    stripeImage[4*j+1] = (GLubyte) ((j>4) ? 255 : 0);
+    stripeImage[4*j+2] = (GLubyte) 0; 
+    stripeImage[4*j+3] = (GLubyte) 255;
+  }
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+/*----------- End 1D stripe image ----------------*/
+
+/*--- texture mapping set-up is to be done in 
+      init() (set up texture objects),
+      display() (activate the texture object to be used, etc.)
+      and in shaders.
+ ---*/
+
+} /* end function */
 //----------------------------------------------------------------------------
 // sphere initialization
 void initSphere(){
@@ -86,6 +145,7 @@ void initFloor(){
 	myFloor.setFloor(vec4(5.0,0.0,8.0,1.0),vec4(-5.0,0.0,-4.0, 1.0));
 	myFloor.fill_flag = true;
 	myFloor.lighting_flag = false;
+	myFloor.texture_mapped_ground = 1;
 	color4 myFloor_color(0.0,1.0,0.0, 1.0);
 	myFloor.setColor(myFloor_color);
 	myFloor.setMaterial();
@@ -95,8 +155,23 @@ void initFloor(){
 // OpenGL initialization
 void init()
 {
-	
     initSphere();
+	image_set_up();
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	/*--- Create and Initialize a texture object ---*/
+	glGenTextures(1, &tex[0]);      // Generate texture obj name(s)
+
+	glActiveTexture( GL_TEXTURE0 );  // Set the active texture unit to be 0 
+	glBindTexture(GL_TEXTURE_2D, tex[0]); // Bind the texture to this texture unit
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ImageWidth, ImageHeight, 
+                0, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+
 	// Create and initialize a vertex buffer object for sphere, to be used in display()
 	glGenBuffers(1, &sphere.sphere_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, sphere.sphere_buffer);
@@ -125,13 +200,15 @@ void init()
 	glGenBuffers(1, &myFloor.floor_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, myFloor.floor_buffer);
 #if 1
-	glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size + sizeof(point3) * myFloor.vertex_size,
+	glBufferData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size + sizeof(point3) * myFloor.vertex_size +sizeof(vec2) * myFloor.vertex_size,
 		 NULL, GL_STATIC_DRAW);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(point4) * myFloor.vertex_size, myFloor.floor_points);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size, sizeof(color4) * myFloor.vertex_size,
 		myFloor.floor_colors);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size, sizeof(point3) * myFloor.vertex_size,
 		myFloor.floor_normals);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point4) * myFloor.vertex_size + sizeof(color4) * myFloor.vertex_size + sizeof(point3) * myFloor.vertex_size, sizeof(vec2) * myFloor.vertex_size,
+		myFloor.floor_texture_cord);
 #endif
 	// Create and initialize a vertex buffer object for axis
 	glGenBuffers(1, &myFloor.axis_buffer);
@@ -253,11 +330,11 @@ void rolling(){
 // drawObj(buffer, num_vertices):
 // modify drawMode to draw lines in shader
 // for X,Y,Z axises
-void drawObj(GLuint buffer, int num_vertices, GLuint drawMode, GLuint program)
+void drawObj(GLuint buffer, int num_vertices, GLuint drawMode, GLuint program, bool texCoord)
 {
     //--- Activate the vertex buffer object to be drawn ---//
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	GLuint vPosition, vColor, vNormal;
+	GLuint vPosition, vColor, vNormal, vTexCoord;
     /*----- Set up vertex attribute arrays for each vertex attribute -----*/
     vPosition = glGetAttribLocation(program, "vPosition");
     glEnableVertexAttribArray(vPosition);
@@ -278,6 +355,14 @@ void drawObj(GLuint buffer, int num_vertices, GLuint drawMode, GLuint program)
 		glEnableVertexAttribArray(vNormal);
 		glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0,
 				BUFFER_OFFSET(sizeof(point4) * num_vertices + sizeof(point4) * num_vertices) ); 
+		
+	}
+	// whether texture coord should be buffered
+	if	(texCoord){
+		vTexCoord = glGetAttribLocation(program, "vTexCoord");
+		glEnableVertexAttribArray(vTexCoord);
+		glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0,
+				BUFFER_OFFSET(sizeof(point4) * num_vertices + sizeof(point4) * num_vertices + sizeof(color3) * num_vertices) ); 
 	}
       // the offset is the (total) size of the previous vertex attribute array(s)
 
@@ -301,6 +386,7 @@ void drawSphere(mat4 mv, mat4 p){
 	glUseProgram(program); // Use the shader program
 	// fog mode
 	glUniform1i( glGetUniformLocation(program, "fog_mode"), fog_mode);
+	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 0);
 	model_view = glGetUniformLocation(program, "model_view" );
     projection = glGetUniformLocation(program, "projection" );
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
@@ -319,7 +405,7 @@ void drawSphere(mat4 mv, mat4 p){
     else              // Wireframe cube
        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glLineWidth(1.0);
-	drawObj(sphere.sphere_buffer, sphere.vertex_size,GL_TRIANGLES, program);  // draw the sphere
+	drawObj(sphere.sphere_buffer, sphere.vertex_size,GL_TRIANGLES, program, false);  // draw the sphere
 }
 //----------------------------------------------------------------------------
 // draw floor
@@ -330,6 +416,10 @@ void drawFloor(mat4 mv, mat4 p){
 	if(myFloor.lighting_flag)	program = programs[1];
 	else	program = programs[0];
 	glUseProgram(program); // Use the shader program
+	// texture
+	glUniform1i( glGetUniformLocation(program, "texture_2D"), 0);
+	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 
+		myFloor.texture_mapped_ground);
 	// fog mode
 	glUniform1i( glGetUniformLocation(program, "fog_mode"), fog_mode);
 	model_view = glGetUniformLocation(program, "model_view" );
@@ -345,7 +435,7 @@ void drawFloor(mat4 mv, mat4 p){
        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     else              // Wireframe floor
        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	drawObj(myFloor.floor_buffer, myFloor.vertex_size,GL_TRIANGLES, program);  // draw the cube
+	drawObj(myFloor.floor_buffer, myFloor.vertex_size,GL_TRIANGLES, program, true);  // draw the floor
 }
 //----------------------------------------------------------------------------
 void display( void )
@@ -390,6 +480,7 @@ void display( void )
 		glUseProgram(program); // Use the shader program
 		// fog mode
 		glUniform1i( glGetUniformLocation(program, "fog_mode"), fog_mode);
+		glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 0);
 		model_view = glGetUniformLocation(program, "model_view" );
 		projection = glGetUniformLocation(program, "projection" );
 		glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
@@ -406,7 +497,7 @@ void display( void )
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glLineWidth(1.0);
 		
-		drawObj(sphere.shadow_buffer, sphere.vertex_size,GL_TRIANGLES, program);  // draw the sphere shadow
+		drawObj(sphere.shadow_buffer, sphere.vertex_size,GL_TRIANGLES, program, false);  // draw the sphere shadow
 	}
 	if(blending_shadow){
 		glDisable(GL_BLEND);
@@ -425,13 +516,14 @@ void display( void )
     glUseProgram(program); // Use the shader program
 	// fog mode
 	glUniform1i( glGetUniformLocation(program, "fog_mode"), fog_mode);
+	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 0);
     model_view = glGetUniformLocation(program, "model_view" );
     projection = glGetUniformLocation(program, "projection" );
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
 	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glLineWidth(2.0);
-	drawObj(myFloor.axis_buffer, myFloor.axis_vertex_size,GL_LINES, program);  // draw the cube
+	drawObj(myFloor.axis_buffer, myFloor.axis_vertex_size,GL_LINES, program, false);  // draw the axis
 	
     glutSwapBuffers();
 }
@@ -507,7 +599,7 @@ void myMenu(int id){
 	
 	glutPostRedisplay();
 }
-//
+//----------------------------------------------------------------------------
 void shadowMenu(int id){
 	switch(id){
 	case 1:
@@ -520,7 +612,7 @@ void shadowMenu(int id){
 		break;
 	}
 }
-//
+//----------------------------------------------------------------------------
 void lightMenu(int id){
 	sphere.fill_flag = true;
 	switch(id){
@@ -534,7 +626,7 @@ void lightMenu(int id){
 		break;
 	}
 }
-//
+//----------------------------------------------------------------------------
 void wfMenu(int id){
 	switch(id){
 	case 1:
@@ -545,7 +637,7 @@ void wfMenu(int id){
 		break;
 	}
 }
-//
+//----------------------------------------------------------------------------
 void shadingMenu(int id){
 	sphere.fill_flag = true;
 	switch(id){
@@ -557,7 +649,7 @@ void shadingMenu(int id){
 		break;
 	}
 }
-//
+//----------------------------------------------------------------------------
 void lightSourceMenu(int id){
 	switch(id){
 	case 1:
@@ -580,6 +672,17 @@ void blendingShadowMenu(int id){
 		break;
 	case 2:
 		blending_shadow = true;
+		break;
+	}
+}
+//----------------------------------------------------------------------------
+void textureMappedGroundMenu(int id){
+	switch(id){
+	case 1:
+		myFloor.texture_mapped_ground = 0;
+		break;
+	case 2:
+		myFloor.texture_mapped_ground = 1;
 		break;
 	}
 }
@@ -619,6 +722,9 @@ void addControl(){
 	GLuint subBSMenu = glutCreateMenu(blendingShadowMenu);
 	glutAddMenuEntry("No", 1);
 	glutAddMenuEntry("Yes", 2);
+	GLuint subGroundTexMenu = glutCreateMenu(textureMappedGroundMenu);
+	glutAddMenuEntry("No", 1);
+	glutAddMenuEntry("Yes", 2);
 	glutCreateMenu(myMenu);
 	glutAddMenuEntry("Default View Port",1);
 	glutAddMenuEntry("Quit",2);
@@ -629,6 +735,7 @@ void addControl(){
 	glutAddSubMenu("Light Source", subLSMenu);
 	glutAddSubMenu("Fog", subFogMenu);
 	glutAddSubMenu("Blending Shadow", subBSMenu);
+	glutAddSubMenu("Texture Mapped Ground", subGroundTexMenu);
 	glutAttachMenu(GLUT_LEFT_BUTTON);
 }
 //----------------------------------------------------------------------------

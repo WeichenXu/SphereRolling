@@ -18,6 +18,13 @@ bool WCX_floor::setFloor(point4 topR, point4 downL){
 	for(int i=0; i<vertex_size; i++){
 		floor_normals[i] = point3(0.0, 1.0, 0.0);
 	}
+	// set texture cord
+	floor_texture_cord[0] = vec2(5.0, 6.0);
+	floor_texture_cord[1] = vec2(5.0, 0.0);
+	floor_texture_cord[2] = vec2(0.0, 0.0);
+	floor_texture_cord[3] = vec2(5.0, 6.0);
+	floor_texture_cord[4] = vec2(0.0, 6.0);
+	floor_texture_cord[5] = vec2(0.0, 0.0);
 	return true;
 }
 void WCX_floor::setColor(color4 color){

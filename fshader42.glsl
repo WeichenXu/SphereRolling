@@ -8,13 +8,31 @@
 
 in  vec4 color;
 in	vec4 ePosition;
+in  vec2 texCoord;
 out vec4 fColor;
 uniform int fog_mode;
+// for texture
+uniform int Texture_app_flag;
+uniform sampler2D texture_2D;
+
 void main() 
 { 
-	vec3 fogColor = vec3(0.7, 0.7, 0.7);
+	vec3 fogColor = vec3(0.7, 0.7, 0.7), fColor3;
 	float density = 0.09, z = length(ePosition.xyz), f;
-	vec3 color3;
+	vec4 colorAfterTexM;
+
+	// texture mapping
+	switch(Texture_app_flag){
+	case 1:
+		// texture tiling for ground
+		colorAfterTexM = color*texture( texture_2D, texCoord );
+		break;
+	default:
+		colorAfterTexM = color;
+		break;
+	}
+
+	// fog
 	switch(fog_mode){
 	case 0:
 		f = 1.0;
@@ -31,7 +49,10 @@ void main()
 		break;
 	}
 	f = clamp(f, 0.0, 1.0);
-	color3 = mix(fogColor, color.xyz, f);
-	fColor = vec4(color3, color.w);
+	fColor3 = mix(fogColor, colorAfterTexM.xyz, f);
+	fColor = vec4(fColor3, colorAfterTexM.w);
+
+	
+
 } 
 
