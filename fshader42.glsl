@@ -9,9 +9,14 @@
 in  vec4 color;
 in	vec4 ePosition;
 in	vec4 oPosition;
-in	float texCoord1;
-in  vec2 texCoord2;
+in	float texS;
+in  float texT;
+in	float latS;
+in	float latT;
+
 out vec4 fColor;
+
+uniform int lattice_flag;
 uniform int fog_mode;
 // for texture
 uniform int Texture_app_flag;
@@ -28,22 +33,26 @@ uniform sampler1D texture_1D;
 
 void main() 
 { 
+	
 	vec3 fogColor = vec3(0.7, 0.7, 0.7), fColor3;
-	float density = 0.09, z = length(ePosition.xyz), f, s;
+	float density = 0.09, z = length(ePosition.xyz), f;
 	vec4 colorAfterTexM;
 	vec4 color_reddish = vec4(0.9, 0.1, 0.1, 1.0);
-	vec2 st;
 
+	// discard if lattice_flag > 0
+	if(lattice_flag > 0){
+		if(fract(4*latS) < 0.35 && fract(4*latT)< 0.35)	discard;
+	}
 	// texture mapping
 	if(Texture_app_flag>=6 && Texture_app_flag <= 9){
-		colorAfterTexM = color*texture( texture_2D, texCoord2);
+		colorAfterTexM = color*texture( texture_2D, vec2(texS,texT));
 		colorAfterTexM = colorAfterTexM.x == 0.0? color*color_reddish:colorAfterTexM;
 	}
 	else if(Texture_app_flag == 1){
-		colorAfterTexM = color*texture( texture_2D, texCoord2);
+		colorAfterTexM = color*texture( texture_2D, vec2(texS,texT));
 	}
 	else if(Texture_app_flag != 0){
-		colorAfterTexM = color*texture(texture_1D, texCoord1);
+		colorAfterTexM = color*texture(texture_1D, texS);
 	}
 	else {
 		colorAfterTexM = color;

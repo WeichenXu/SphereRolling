@@ -18,8 +18,10 @@ in  vec2 vTexCoord;
 out vec4 color;
 out vec4 ePosition; // position in eye frame
 out vec4 oPosition; // position in world frame
-out float texCoord1;
-out vec2 texCoord2;
+out float texS;
+out float texT;
+out float latS;
+out float latT;
 
 uniform int Texture_app_flag;
 /*
@@ -30,6 +32,7 @@ uniform int Texture_app_flag;
  5: slanted in eye frame
  6-9: same as upper, but in tex 2D
 */
+uniform int lattice_flag;
 
 uniform int smooth_shading; // use smooth/flat shading
 uniform int point_light; // use point/spotlight source
@@ -102,6 +105,7 @@ void main()
 	d = max( dot(L, N), 0.0 );
 	diffuse = attenuation * d * pointDiffuseProduct;
 	// get specular light
+	// pow(x, y) result is undefined if x<0 or if x=0 and y<=0
 	s = pow( max(dot(N, H), 0.0), Shininess );
 	
 	specular = attenuation*s*pointSpecularProduct;
@@ -115,33 +119,46 @@ void main()
 	// texture coord compuation and set
 	switch(Texture_app_flag){
 	case 1:
-		texCoord2 = vTexCoord;
+		texS = vTexCoord.x;
+		texT = vTexCoord.y;
 		break;
 	case 2:
-		texCoord1 = 2.5*oPosition.x;
+		texS = 2.5*oPosition.x;
 		break;
 	case 3:
-		texCoord1 = 1.5*(oPosition.x+oPosition.y+oPosition.z);
+		texS = 1.5*(oPosition.x+oPosition.y+oPosition.z);
 		break;
 	case 4:
-		texCoord1 = 2.5*ePosition.x;
+		texS = 2.5*ePosition.x;
 		break;
 	case 5:
-		texCoord1 = 1.5*(ePosition.x+ePosition.y+ePosition.z);
+		texS = 1.5*(ePosition.x+ePosition.y+ePosition.z);
 		break;
 	case 6:
-		texCoord2 = vec2(0.75*(oPosition.x+1), 0.75*(oPosition.y+1));
+		texS = 0.75*(oPosition.x+1);
+		texT = 0.75*(oPosition.y+1);
 		break;
 	case 7:
-		texCoord2 = vec2(0.45*(oPosition.x+oPosition.y+oPosition.z), 0.45*(oPosition.x-oPosition.y+oPosition.z));
+		texS = 0.45*(oPosition.x+oPosition.y+oPosition.z);
+		texT = 0.45*(oPosition.x-oPosition.y+oPosition.z);
 		break;
 	case 8:
-		texCoord2 = vec2(0.75*(ePosition.x+1), 0.75*(ePosition.y+1));
+		texS = 0.75*(ePosition.x+1);
+		texT = 0.75*(ePosition.y+1);
 		break;
 	case 9:
-		texCoord2 = vec2(0.45*(ePosition.x+ePosition.y+ePosition.z), 0.45*(ePosition.x-ePosition.y+ePosition.z));
+		texS = 0.45*(ePosition.x+ePosition.y+ePosition.z);
+		texT = 0.45*(ePosition.x-ePosition.y+ePosition.z);
 		break;
 	default:
 		break;
+	}
+	if(lattice_flag == 1){
+		latS = 0.5*oPosition.x + 1;
+		latT = 0.5*oPosition.y + 1;
+	}
+	if(lattice_flag == 2){
+		latS = 0.3*(oPosition.x+oPosition.y+oPosition.z);
+		latT = 0.3*(oPosition.x-oPosition.y+oPosition.z);
 	}
 } 

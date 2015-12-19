@@ -46,5 +46,5 @@ void WCX_floor::setMaterial(){
 	this->lp.material_ambient = color4(0.2, 0.2, 0.2, 1.0);
 	this->lp.material_diffuse = color4(0.0, 1.0, 0.0, 1.0);
 	this->lp.material_specular = color4(0.0, 0.0, 0.0, 1.0);
-	this->lp.material_shininess = 0.0;
+	this->lp.material_shininess = 1.0;
 }

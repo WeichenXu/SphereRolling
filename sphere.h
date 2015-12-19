@@ -17,6 +17,8 @@
 #define _SLA_TEX_COORD 1
 #define _TEX_IN_WORLD 2
 #define _TEX_IN_EYE 4
+#define _UPRIGHT_LATTICE 1
+#define _TITLED_LATTICE 2
 #define PI 3.1415
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
@@ -45,6 +47,9 @@ public:
 	int textureCoordFrame;
 	int textureCoordDir;
 	int texture2D;
+	// attributes for lattice
+	bool lattice_flag;
+	int lattice_mode;
 
 	WCX_light_products lp;
 	//----------------------------------------------

@@ -6,6 +6,7 @@
  * 3. texture mapping: 
 		Ground texture tiling
 		sphere texture 1D/2D slanted/vertical obj/eye frame
+ * 4. lattice
  * 
 /**************************************************************/
 #include "Angel-yjc.h"
@@ -137,6 +138,8 @@ void initSphere(){
 	sphere.lighting_flag = true;
 	sphere.shadow = true;
 	sphere.textureFlag = true;
+	sphere.lattice_flag = false;
+	sphere.lattice_mode = _UPRIGHT_LATTICE;
 	sphere.textureCoordDir = _VER_TEX_COORD;
 	sphere.textureCoordFrame = _TEX_IN_WORLD;
 	sphere.texture2D = 0;
@@ -408,6 +411,8 @@ void drawSphere(mat4 mv, mat4 p){
 	glUniform1i( glGetUniformLocation(program, "texture_2D"), 0);
 	glUniform1i( glGetUniformLocation(program, "texture_1D"), 1);
 	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), sphere.getTextureAppFlag());
+	if(sphere.lattice_flag)	glUniform1i( glGetUniformLocation(program, "lattice_flag"), sphere.lattice_mode);
+	else glUniform1i( glGetUniformLocation(program, "lattice_flag"), 0);
 	model_view = glGetUniformLocation(program, "model_view" );
     projection = glGetUniformLocation(program, "projection" );
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
@@ -439,8 +444,8 @@ void drawFloor(mat4 mv, mat4 p){
 	glUseProgram(program); // Use the shader program
 	// texture
 	glUniform1i( glGetUniformLocation(program, "texture_2D"), 0);
-	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 
-		myFloor.texture_mapped_ground);
+	glUniform1i( glGetUniformLocation(program, "lattice_flag"), 0);
+	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), myFloor.texture_mapped_ground);
 	// fog mode
 	glUniform1i( glGetUniformLocation(program, "fog_mode"), fog_mode);
 	model_view = glGetUniformLocation(program, "model_view" );
@@ -504,6 +509,8 @@ void display( void )
 		glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 0);
 		model_view = glGetUniformLocation(program, "model_view" );
 		projection = glGetUniformLocation(program, "projection" );
+		if(sphere.lattice_flag)	glUniform1i( glGetUniformLocation(program, "lattice_flag"), sphere.lattice_mode);
+		else glUniform1i( glGetUniformLocation(program, "lattice_flag"), 0);
 		glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
 		mv = LookAt(eye, at, up);
 		if(beginRolling)	mv =  mv * shadowMatrix * sphere.rollingFramePosition(frame)*sphere.rollingFrameRotate(frame);
@@ -540,6 +547,7 @@ void display( void )
 	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 0);
     model_view = glGetUniformLocation(program, "model_view" );
     projection = glGetUniformLocation(program, "projection" );
+	glUniform1i( glGetUniformLocation(program, "lattice_flag"), 0);
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
 	glUniformMatrix4fv(model_view, 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -603,6 +611,9 @@ void keyboard(unsigned char key, int x, int y)
 	case 's': case 'S': sphere.textureCoordDir = _SLA_TEX_COORD; break;
 	case 'o': case 'O': sphere.textureCoordFrame = _TEX_IN_WORLD; break;
 	case 'e': case 'E': sphere.textureCoordFrame = _TEX_IN_EYE; break;
+	case 'l': case 'L': sphere.lattice_flag = !sphere.lattice_flag; break;
+	case 'u': case 'U': sphere.lattice_mode = _UPRIGHT_LATTICE; break;
+	case 't': case 'T': sphere.lattice_mode = _TITLED_LATTICE; break;
     }
 	
     glutPostRedisplay();
