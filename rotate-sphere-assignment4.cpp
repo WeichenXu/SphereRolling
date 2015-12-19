@@ -3,7 +3,10 @@
  * Date: 12/16/2015
  * 1. fog, 3 types
  * 2. blending shadow
- * 3. texture mapping
+ * 3. texture mapping: 
+		Ground texture tiling
+		sphere texture 1D/2D slanted/vertical obj/eye frame
+ * 
 /**************************************************************/
 #include "Angel-yjc.h"
 #include "sphere.h"
@@ -130,9 +133,13 @@ void initSphere(){
 	// init & set sphere
 	sphere.loadSphereFromFile();
 	sphere.setFlatNormals();
-	sphere.fill_flag = false;
-	sphere.lighting_flag = false;
+	sphere.fill_flag = true;
+	sphere.lighting_flag = true;
 	sphere.shadow = true;
+	sphere.textureFlag = true;
+	sphere.textureCoordDir = _VER_TEX_COORD;
+	sphere.textureCoordFrame = _TEX_IN_WORLD;
+	sphere.texture2D = 0;
 	sphere.setColor(sphere_color);
 	sphere.setShadowColor(shadow_color);
 	sphere.setMaterial();
@@ -171,7 +178,19 @@ void init()
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ImageWidth, ImageHeight, 
                 0, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+	/*--- Create and Initialize a texture for strip ---*/
+	glGenTextures(1, &tex[1]);      // Generate texture obj name(s)
 
+	glActiveTexture( GL_TEXTURE1 );  // Set the active texture unit to be 1 
+	glBindTexture(GL_TEXTURE_1D, tex[1]); // Bind the texture to this texture unit
+
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, stripeImageWidth,
+                0, GL_RGBA, GL_UNSIGNED_BYTE, stripeImage);
 	// Create and initialize a vertex buffer object for sphere, to be used in display()
 	glGenBuffers(1, &sphere.sphere_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, sphere.sphere_buffer);
@@ -386,7 +405,9 @@ void drawSphere(mat4 mv, mat4 p){
 	glUseProgram(program); // Use the shader program
 	// fog mode
 	glUniform1i( glGetUniformLocation(program, "fog_mode"), fog_mode);
-	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), 0);
+	glUniform1i( glGetUniformLocation(program, "texture_2D"), 0);
+	glUniform1i( glGetUniformLocation(program, "texture_1D"), 1);
+	glUniform1i( glGetUniformLocation(program, "Texture_app_flag"), sphere.getTextureAppFlag());
 	model_view = glGetUniformLocation(program, "model_view" );
     projection = glGetUniformLocation(program, "projection" );
 	glUniformMatrix4fv(projection, 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
@@ -578,6 +599,10 @@ void keyboard(unsigned char key, int x, int y)
 	case 'y': eye[1] -= 1.0; break;
     case 'Z': eye[2] += 1.0; break;
 	case 'z': eye[2] -= 1.0; break;
+	case 'v': case 'V':	sphere.textureCoordDir = _VER_TEX_COORD; break;
+	case 's': case 'S': sphere.textureCoordDir = _SLA_TEX_COORD; break;
+	case 'o': case 'O': sphere.textureCoordFrame = _TEX_IN_WORLD; break;
+	case 'e': case 'E': sphere.textureCoordFrame = _TEX_IN_EYE; break;
     }
 	
     glutPostRedisplay();
@@ -687,6 +712,22 @@ void textureMappedGroundMenu(int id){
 	}
 }
 //----------------------------------------------------------------------------
+void textureMappedSphereMenu(int id){
+	switch(id){
+	case 1:
+		sphere.textureFlag = false;
+		break;
+	case 2:
+		sphere.textureFlag = true;
+		sphere.texture2D = 0;
+		break;
+	case 3:
+		sphere.textureFlag = true;
+		sphere.texture2D = 1;
+		break;
+	}
+}
+//----------------------------------------------------------------------------
 void reshape(int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -725,6 +766,10 @@ void addControl(){
 	GLuint subGroundTexMenu = glutCreateMenu(textureMappedGroundMenu);
 	glutAddMenuEntry("No", 1);
 	glutAddMenuEntry("Yes", 2);
+	GLuint subSphereTexMenu = glutCreateMenu(textureMappedSphereMenu);
+	glutAddMenuEntry("No", 1);
+	glutAddMenuEntry("Yes - Contour Lines", 2);
+	glutAddMenuEntry("Yes - Checkboard", 3);
 	glutCreateMenu(myMenu);
 	glutAddMenuEntry("Default View Port",1);
 	glutAddMenuEntry("Quit",2);
@@ -736,6 +781,7 @@ void addControl(){
 	glutAddSubMenu("Fog", subFogMenu);
 	glutAddSubMenu("Blending Shadow", subBSMenu);
 	glutAddSubMenu("Texture Mapped Ground", subGroundTexMenu);
+	glutAddSubMenu("Texture Mapped Sphere", subSphereTexMenu);
 	glutAttachMenu(GLUT_LEFT_BUTTON);
 }
 //----------------------------------------------------------------------------

@@ -98,3 +98,16 @@ void WCX_sphere::setFlatNormals(){
 		for(int j=0; j<3; j++)	this->sphere_normals[i*3+j] = vNormal;
 	}
 }
+/*
+ 1: texture mapping for ground
+ 2: vertical in obj frame
+ 3: slanted in obj frame
+ 4: vertical in eye frame
+ 5: slanted in eye frame
+ in 2D, +4
+ default: no texture
+*/
+int WCX_sphere::getTextureAppFlag(){
+	if(!this->textureFlag || !this->fill_flag)	return 0;
+	return this->textureCoordFrame+this->textureCoordDir+4*this->texture2D;
+}

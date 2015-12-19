@@ -13,6 +13,10 @@
 #include <iostream>
 #include <fstream>
 #define _MAX_SPHERE_VERTICES	1024
+#define _VER_TEX_COORD 0
+#define _SLA_TEX_COORD 1
+#define _TEX_IN_WORLD 2
+#define _TEX_IN_EYE 4
 #define PI 3.1415
 typedef Angel::vec4  color4;
 typedef Angel::vec4  point4;
@@ -36,7 +40,12 @@ public:
 	void setColor(color4 uniformColor);
 	// attributes for shading
 	bool lighting_flag;
-	
+	// attributes for texture mapping
+	bool textureFlag;
+	int textureCoordFrame;
+	int textureCoordDir;
+	int texture2D;
+
 	WCX_light_products lp;
 	//----------------------------------------------
 	//functions for rolling
@@ -54,6 +63,8 @@ public:
 	//functions for shading
 	void setMaterial();
 	void setFlatNormals();
-	
+	//----------------------------------------------
+	//functions for texture
+	int getTextureAppFlag();
 };
 #endif
