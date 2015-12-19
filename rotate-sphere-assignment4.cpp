@@ -13,6 +13,7 @@
 #include "sphere.h"
 #include "floor.h"
 #include "light.h"
+#include "firework.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -23,7 +24,7 @@ WCX_sphere sphere;
 WCX_floor myFloor;
 GLuint Angel::InitShader(const char* vShaderFile, const char* fShaderFile);
 
-GLuint programs[2];       /* shader program object id */
+GLuint programs[3];       /* shader program object id */
 GLuint myFloor_buffer;  /* vertex buffer object id for myFloor */
 GLuint sphere_buffer;	/*vertex buffer object id for sphere */
 
@@ -68,6 +69,9 @@ void initLightSource();
 // 0: no fog; 1: linear; 2: expotional; 3: exp square
 // init with no fog: 0
 GLuint fog_mode = 0;
+
+// firework
+WCX_firework firework;
 
 /* global definitions for constants and global image arrays */
 static GLuint tex[2];
@@ -154,7 +158,7 @@ void initFloor(){
 	// init & set myFloor
 	myFloor.setFloor(vec4(5.0,0.0,8.0,1.0),vec4(-5.0,0.0,-4.0, 1.0));
 	myFloor.fill_flag = true;
-	myFloor.lighting_flag = false;
+	myFloor.lighting_flag = true;
 	myFloor.texture_mapped_ground = 1;
 	color4 myFloor_color(0.0,1.0,0.0, 1.0);
 	myFloor.setColor(myFloor_color);
@@ -243,11 +247,23 @@ void init()
 		myFloor.axis_colors);
 #endif
 
+	// Create and initialize a vertex buffer for firework
+	firework.setFirework();
+	glGenBuffers(1, &firework.firework_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, firework.firework_buffer);
+#if 1
+	glBufferData(GL_ARRAY_BUFFER, sizeof(point3) * firework.vertex_size + sizeof(color3) * firework.vertex_size,
+		 NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(point3) * firework.vertex_size, firework.particle_velocity);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(point3) * firework.vertex_size, sizeof(color3) * firework.vertex_size, firework.particle_color);
+#endif
+
 	// init & set up light source
 	initLightSource();
  // Load shaders and create a shader program (to be used in display())
     programs[0] = InitShader("vshader42.glsl", "fshader42.glsl");
     programs[1] = InitShader("vshader43.glsl", "fshader42.glsl");
+	programs[2] = InitShader("vshader_firework.glsl", "fshader_firework.glsl");
     glEnable( GL_DEPTH_TEST );
     glClearColor( 0.0, 0.0, 0.0, 1.0 ); 
     // initialize shadow matrix
@@ -394,6 +410,7 @@ void drawObj(GLuint buffer, int num_vertices, GLuint drawMode, GLuint program, b
 
     /*--- Disable each vertex attribute array being enabled ---*/
     glDisableVertexAttribArray(vPosition);
+	if	(texCoord)	glDisableVertexAttribArray(vTexCoord);
     if(program == programs[0])	glDisableVertexAttribArray(vColor);
 	else if(program == programs[1])	glDisableVertexAttribArray(vNormal);
 }
@@ -462,6 +479,38 @@ void drawFloor(mat4 mv, mat4 p){
     else              // Wireframe floor
        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	drawObj(myFloor.floor_buffer, myFloor.vertex_size,GL_TRIANGLES, program, true);  // draw the floor
+}
+//----------------------------------------------------------------------------
+// draw firework
+void drawFirework(mat4 &mv, mat4 &p){
+	GLuint  program;
+	if(!firework.firework_on)	return;
+	glPointSize(3.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_POINTS);
+	program = programs[2];
+	glUseProgram(program); // Use the shader program
+	float t = firework.getElapsedTime(glutGet(GLUT_ELAPSED_TIME));
+	glUniform1f( glGetUniformLocation(program, "t"), firework.getElapsedTime(glutGet(GLUT_ELAPSED_TIME)));
+	glUniformMatrix4fv(glGetUniformLocation(program, "projection" ), 1, GL_TRUE, p); // GL_TRUE: matrix is row-major
+	glUniformMatrix4fv(glGetUniformLocation(program, "model_view" ), 1, GL_TRUE, mv); // GL_TRUE: matrix is row-major
+	
+	//--- Activate the vertex buffer object to be drawn ---//
+	glBindBuffer(GL_ARRAY_BUFFER, firework.firework_buffer);
+	GLuint vVelocity, vColor;
+	/*----- Set up vertex attribute arrays for each vertex attribute -----*/
+    vVelocity = glGetAttribLocation(program, "vVelocity");
+    glEnableVertexAttribArray(vVelocity);
+    glVertexAttribPointer(vVelocity, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0) );
+	vColor = glGetAttribLocation(program, "vColor"); 
+	glEnableVertexAttribArray(vColor);
+	glVertexAttribPointer(vColor, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(point3) * firework.vertex_size) ); 
+	/* Draw a sequence of geometric objs (triangles) from the vertex buffer
+       (using the attributes specified in each enabled vertex attribute array) */
+	glDrawArrays(GL_POINTS, 0, firework.vertex_size);
+
+    /*--- Disable each vertex attribute array being enabled ---*/
+    glDisableVertexAttribArray(vVelocity);
+	glDisableVertexAttribArray(vColor);
 }
 //----------------------------------------------------------------------------
 void display( void )
@@ -538,6 +587,8 @@ void display( void )
 	drawFloor(mv, p);  // draw the cube
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	
+	// draw firework
+	drawFirework(mv, p);
 
 	// Draw axises
 	program = programs[0];
@@ -553,6 +604,8 @@ void display( void )
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glLineWidth(2.0);
 	drawObj(myFloor.axis_buffer, myFloor.axis_vertex_size,GL_LINES, program, false);  // draw the axis
+
+	
 	
     glutSwapBuffers();
 }
@@ -739,6 +792,18 @@ void textureMappedSphereMenu(int id){
 	}
 }
 //----------------------------------------------------------------------------
+void fireworkMenu(int id){
+	switch(id){
+	case 1:
+		firework.firework_on = false;
+		break;
+	case 2:
+		if (firework.firework_on == false)firework.start_time = glutGet(GLUT_ELAPSED_TIME);
+		firework.firework_on = true;
+		break;
+	}
+}
+//----------------------------------------------------------------------------
 void reshape(int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -781,6 +846,9 @@ void addControl(){
 	glutAddMenuEntry("No", 1);
 	glutAddMenuEntry("Yes - Contour Lines", 2);
 	glutAddMenuEntry("Yes - Checkboard", 3);
+	GLuint subFireworkMenu = glutCreateMenu(fireworkMenu);
+	glutAddMenuEntry("No", 1);
+	glutAddMenuEntry("Yes", 2);
 	glutCreateMenu(myMenu);
 	glutAddMenuEntry("Default View Port",1);
 	glutAddMenuEntry("Quit",2);
@@ -793,6 +861,7 @@ void addControl(){
 	glutAddSubMenu("Blending Shadow", subBSMenu);
 	glutAddSubMenu("Texture Mapped Ground", subGroundTexMenu);
 	glutAddSubMenu("Texture Mapped Sphere", subSphereTexMenu);
+	glutAddSubMenu("Firework", subFireworkMenu);
 	glutAttachMenu(GLUT_LEFT_BUTTON);
 }
 //----------------------------------------------------------------------------
