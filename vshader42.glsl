@@ -14,11 +14,11 @@
 
 in  vec4 vPosition;
 in  vec4 vColor;
-in  vec2 vTexCoord;
+
 out vec4 color;
 out vec4 ePosition; // position in eye frame
 out vec4 oPosition; // position in world frame
-out vec2 texCoord;
+
 uniform mat4 model_view;
 uniform mat4 projection;
 
@@ -30,5 +30,4 @@ void main()
 	ePosition = model_view*vPosition;
     gl_Position = projection * model_view * vPosition;
 	color = vColor;
-	texCoord = vTexCoord;
 } 

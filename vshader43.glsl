@@ -18,7 +18,18 @@ in  vec2 vTexCoord;
 out vec4 color;
 out vec4 ePosition; // position in eye frame
 out vec4 oPosition; // position in world frame
-out vec2 texCoord;
+out float texCoord1;
+out vec2 texCoord2;
+
+uniform int Texture_app_flag;
+/*
+ 1: texture mapping for ground
+ 2: vertical in obj frame
+ 3: slanted in obj frame
+ 4: vertical in eye frame
+ 5: slanted in eye frame
+ 6-9: same as upper, but in tex 2D
+*/
 
 uniform int smooth_shading; // use smooth/flat shading
 uniform int point_light; // use point/spotlight source
@@ -101,5 +112,36 @@ void main()
 	oPosition = vPosition;
 	ePosition = model_view*vPosition;
 	gl_Position = projection * model_view * vPosition;
-	texCoord = vTexCoord;
+	// texture coord compuation and set
+	switch(Texture_app_flag){
+	case 1:
+		texCoord2 = vTexCoord;
+		break;
+	case 2:
+		texCoord1 = 2.5*oPosition.x;
+		break;
+	case 3:
+		texCoord1 = 1.5*(oPosition.x+oPosition.y+oPosition.z);
+		break;
+	case 4:
+		texCoord1 = 2.5*ePosition.x;
+		break;
+	case 5:
+		texCoord1 = 1.5*(ePosition.x+ePosition.y+ePosition.z);
+		break;
+	case 6:
+		texCoord2 = vec2(0.75*(oPosition.x+1), 0.75*(oPosition.y+1));
+		break;
+	case 7:
+		texCoord2 = vec2(0.45*(oPosition.x+oPosition.y+oPosition.z), 0.45*(oPosition.x-oPosition.y+oPosition.z));
+		break;
+	case 8:
+		texCoord2 = vec2(0.75*(ePosition.x+1), 0.75*(ePosition.y+1));
+		break;
+	case 9:
+		texCoord2 = vec2(0.45*(ePosition.x+ePosition.y+ePosition.z), 0.45*(ePosition.x-ePosition.y+ePosition.z));
+		break;
+	default:
+		break;
+	}
 } 
